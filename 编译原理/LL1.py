@@ -74,7 +74,7 @@ class LL1Parser:
         return self.FIRST[symbol] 
 
     def cal_follow(self,symbol):
-        #symbol.is_terminal 则直接返回只有该符号的集合
+         #symbol.is_terminal 则直接返回只有该符号的集合
         if symbol.attr == 'T':
             return set([symbol])
         try:
@@ -82,7 +82,12 @@ class LL1Parser:
                 return self.FOLLOW[symbol]
         except:
             self.FOLLOW[symbol] = set()
-
+        try:
+            if symbol == self.start_symbol:
+                self.FOLLOW[symbol].add(self.DOLLOR)
+        except:
+            raise Exception('起始符没有设置')
+ 
         #遍历STATEMENTS中右端含有symbol的推导式
         
         sts = []
@@ -93,7 +98,9 @@ class LL1Parser:
             #1. A->aB，即B后无符号： FOLLOW(B)内加入FOLLOW(A)
         for key,st in sts:
             searched = st[st.index(symbol):]
+            print symbol,key,searched
             if len(searched) == 1: 
+                print '情况1',symbol,searched
                 follow = self.cal_follow(key)
                 self.FOLLOW[symbol].update(follow)
                 continue
@@ -112,15 +119,31 @@ class LL1Parser:
                     foo = first
                     foo.remove(self.EPSILON)
                     self.FOLLOW[symbol].update(foo)
-            #如果B后的符号都可以导出ESP,则运用规则1后在FOLLOW(B)中加入ESP
-            if esp: self.FOLLOW[symbol].update(set([self.EPSILON]))
-        try:
-            if symbol == self.start_symbol:
-                self.FOLLOW[symbol].add(self.DOLLOR)
-        except:
-            raise Exception('起始符没有设置')
+            #如果B后的符号都可以导出ESP,则运用规则1后在FOLLOW(B)中加入FOLLOW(A)
+            if esp: self.FOLLOW[symbol].update(self.cal_follow(key))
         return self.FOLLOW[symbol]
 
+def main_3():
+    ll = LL1Parser()
+    E = Symbol('E','NT')
+    T = Symbol('T','NT')
+    E2 = Symbol('E\'','NT')
+    plus = Symbol('+','T')
+    F = Symbol('F','NT')
+    T2 = Symbol('T\'','NT')
+    times = Symbol('*','T')
+    l_b = Symbol('(','T')
+    r_b = Symbol(')','T')
+    i = Symbol('i','NT')
+    ll.STATEMENTS[E] = [[T,E2]]
+    ll.STATEMENTS[E2] = [[plus,T,E2],[ll.EPSILON]]
+    ll.STATEMENTS[T] = [[F,T2]]
+    ll.STATEMENTS[T2] = [[times,F,T2],[ll.EPSILON]]
+    ll.STATEMENTS[F] = [[l_b,E,r_b],[i]]
+    
+    ll.set_start_symbol(E)
+    ll.cal_follow(F)
+    print ll.FOLLOW[F]
 def main():
     ll = LL1Parser()
     A = Symbol('A','NT')
