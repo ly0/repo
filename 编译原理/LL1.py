@@ -6,27 +6,84 @@ This temporary script file is located here:
 /home/latyas/.spyder2/.temp.py
 """
 from basic.definition import *
+from utils.utils import *
 
 class LL1Parser:
     def __init__(self):
-        pass
         self.STATEMENTS = {}
         self.FIRST = {}
         self.FOLLOW = {}
-        self.EPSILON = Symbol('epsilon','T')
+        # \xa6\xc5 = epsilon
+        self.EPSILON = Symbol('\xa6\xc5','T')
         self.DOLLOR = Symbol('$','T')
-    def add_symbol(self,name,attr):
-        """
-        :param name: 符号助记符
-        :param attr: 符号属性，可选值为T或NT
-        :type attr: str
-        """
-        if attr != 'T' and attr != 'NT':
-            raise TypeError("符号属性设置错误")
-    def add_derivation(self):
-        pass
+        self.start_symbol = None
+        
     def set_start_symbol(self, symbol):
         self.start_symbol = symbol
+    def cal_first_all(self):
+        for i in self.STATEMENTS.keys():
+            self.cal_first(i)
+    def cal_follow_all(self):
+        for i in self.STATEMENTS.keys():
+            self.cal_follow(i)    
+    
+    @classmethod
+    def create_LL1_from_statements(cls,s):
+        foo = cls()
+        foo.add_production(s)
+        return foo
+    
+        
+    @Utils.update_sets
+    def add_production(self, prod):
+        init_cmd = ''
+        all_symbols = set()
+        non_terminal = set()
+        start_sym = None
+        for line in prod.split('\n'):
+            line = line.strip()
+            if line == '': continue
+            print line
+            # this_prod 是这个产生式要执行的更新STATEMENTS的语句
+            this_prod = ""
+            prod_list = line.split("->")
+            left = prod_list[0].replace(' ','')
+            if not self.start_symbol: 
+                start_sym = left
+            this_prod += "self.STATEMENTS[sym_{0}]=[".format(left)
+            # 左边的一定是 non-terminal
+            non_terminal.add(left) 
+            right = prod_list[1].split("|")
+            for each_prod in right:
+                right_symbol = each_prod.split()
+                all_symbols.update(set(right_symbol))
+                this_prod += ("[sym_%s]," % (',sym_'.join(right_symbol))).replace("sym_EPSILON","self.EPSILON")
+                
+            # 格式: self.STATEMENTS[T]=[[a,b,c],[c,d,e]]
+            this_prod = this_prod[:-1] + "]"
+            
+            init_cmd += this_prod + '\n'
+            
+            
+        terminal = all_symbols.difference(non_terminal)
+        init_non_terminal = ""
+        for i in non_terminal:
+            init_non_terminal += "sym_{0} = Symbol('{0}','NT')\n".format(i)
+
+        init_terminal = ""
+        for i in terminal:
+            init_terminal += "sym_{0} = Symbol('{0}','T')\n".format(i)
+        
+        print init_non_terminal
+        print init_terminal
+        print init_cmd    
+        exec(init_non_terminal)
+        exec(init_terminal)
+        exec(init_cmd)
+        # 设置起始符号
+        if not self.start_symbol:
+            exec("self.set_start_symbol = sym_%s" % start_sym)
+            
 
     def cal_first(self,symbol):
         #遇到终止符直接返回
@@ -100,7 +157,6 @@ class LL1Parser:
             searched = st[st.index(symbol):]
             print symbol,key,searched
             if len(searched) == 1: 
-                print '情况1',symbol,searched
                 follow = self.cal_follow(key)
                 self.FOLLOW[symbol].update(follow)
                 continue
@@ -122,7 +178,15 @@ class LL1Parser:
             #如果B后的符号都可以导出ESP,则运用规则1后在FOLLOW(B)中加入FOLLOW(A)
             if esp: self.FOLLOW[symbol].update(self.cal_follow(key))
         return self.FOLLOW[symbol]
-
+    def DFS(self, token_list):
+        pass
+def main():
+    ll = LL1Parser.create_LL1_from_statements(
+    """A -> s b c| u s b
+       B -> sub ccc ggg A | B s | EPSILON
+    """)
+    
+    print ll.FIRST
 def main_3():
     ll = LL1Parser()
     E = Symbol('E','NT')
@@ -144,7 +208,7 @@ def main_3():
     ll.set_start_symbol(E)
     ll.cal_follow(F)
     print ll.FOLLOW[F]
-def main():
+def main_2():
     ll = LL1Parser()
     A = Symbol('A','NT')
     B = Symbol('B','NT')
